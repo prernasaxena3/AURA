@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ✅ Keep global reset clean */
+@layer base {
+  body {
+    @apply bg-white text-black;
+  }
+}
+
+/* ✅ Home Page–specific styles */
+.homepage {
+  font-family: "Doto", sans-serif;
+}
+
+.dotted-background {
+  background-image: radial-gradient(rgba(18, 52, 88, 0.4) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: #030303;
+}
+
+.dotted-background-dense {
+  background-image: radial-gradient(
+    rgba(18, 52, 88, 0.5) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 15px 15px;
+  background-color: #030303;
+}
+
+.gradient-dark {
+  background: linear-gradient(135deg, #030303 0%, #1a4470 50%, #030303 100%);
+}
+
+.card-gradient {
+  background: linear-gradient(
+    135deg,
+    rgba(26, 68, 112, 0.25) 0%,
+    rgba(3, 3, 3, 0.9) 100%
+  );
+  backdrop-filter: blur(10px);
+}

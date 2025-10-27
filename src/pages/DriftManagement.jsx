@@ -26,7 +26,21 @@ const DriftManagement = () => {
   const [selectedEvent, setSelectedEvent] = useState("DFT-001");
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showBranchModal, setShowBranchModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [exportFormat, setExportFormat] = useState("json");
+  const [mergeOptions, setMergeOptions] = useState({
+    targetBranch: "main",
+    createBackup: true,
+    autoResolveConflicts: false,
+  });
+  const [branchOptions, setBranchOptions] = useState({
+    branchName: "",
+    description: "",
+    baseBranch: "main",
+  });
   const [configSettings, setConfigSettings] = useState({
     sensitivity: "high",
     autoRestoreConfig: true,
@@ -201,7 +215,6 @@ const DriftManagement = () => {
 
     setShowRestoreModal(false);
 
-    // Restore events one by one with delays
     pendingEvents.forEach((event, index) => {
       setTimeout(() => {
         setDriftFlowData((prev) =>
@@ -227,7 +240,6 @@ const DriftManagement = () => {
         );
         showToast(`${event.id} restored successfully`, "success");
 
-        // Show completion message after last restore
         if (index === pendingEvents.length - 1) {
           setTimeout(() => {
             showToast("All pending events restored successfully", "success");
@@ -285,6 +297,10 @@ const DriftManagement = () => {
   };
 
   const handleExportFlow = () => {
+    setShowExportModal(true);
+  };
+
+  const confirmExport = () => {
     const report = {
       timestamp: new Date().toISOString(),
       events: driftFlowData,
@@ -292,53 +308,124 @@ const DriftManagement = () => {
       configSettings: configSettings,
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
-      type: "application/json",
-    });
+    let blob, filename;
+
+    if (exportFormat === "json") {
+      blob = new Blob([JSON.stringify(report, null, 2)], {
+        type: "application/json",
+      });
+      filename = `drift-flow-${new Date().toISOString().split("T")[0]}.json`;
+    } else {
+      // CSV format
+      const csvHeader =
+        "ID,Device,Application,Type,Severity,Status,Timestamp,Description,Original Version,Drifted Version\n";
+      const csvRows = driftFlowData
+        .map(
+          (e) =>
+            `${e.id},${e.device},${e.application},${e.type},${e.severity},${e.status},${e.timestamp},"${e.description}",${e.originalVersion},${e.driftedVersion}`
+        )
+        .join("\n");
+      blob = new Blob([csvHeader + csvRows], { type: "text/csv" });
+      filename = `drift-flow-${new Date().toISOString().split("T")[0]}.csv`;
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `drift-flow-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showToast("Drift flow report exported successfully", "success");
+    setShowExportModal(false);
+    showToast(
+      `Drift flow exported as ${exportFormat.toUpperCase()} successfully`,
+      "success"
+    );
   };
 
   const handleBackupNow = () => {
-    showToast(
-      "Creating backup snapshots for all monitored configurations...",
-      "info"
-    );
+    showToast("Initializing backup process...", "info");
 
     setTimeout(() => {
       showToast(
-        "Backup created successfully for 247 configurations",
+        "Creating snapshots for all monitored configurations...",
+        "info"
+      );
+    }, 1000);
+
+    setTimeout(() => {
+      showToast(
+        "Backup completed successfully for 247 configurations",
         "success"
       );
     }, 3000);
   };
 
   const handleMergeChanges = () => {
-    showToast("Git-style merge functionality coming soon", "info");
+    setShowMergeModal(true);
+  };
+
+  const confirmMerge = () => {
+    showToast(
+      `Initiating merge to ${mergeOptions.targetBranch} branch...`,
+      "info"
+    );
+
     setTimeout(() => {
-      showToast(
-        "This will allow merging approved configuration changes",
-        "info"
-      );
-    }, 1500);
+      if (mergeOptions.createBackup) {
+        showToast("Creating backup before merge...", "info");
+      }
+    }, 1000);
+
+    setTimeout(() => {
+      showToast("Analyzing configuration changes...", "info");
+    }, 2000);
+
+    setTimeout(() => {
+      if (mergeOptions.autoResolveConflicts) {
+        showToast("Auto-resolving conflicts...", "info");
+      } else {
+        showToast("Manual conflict resolution required for 2 files", "warning");
+      }
+    }, 3000);
+
+    setTimeout(() => {
+      showToast("Merge completed successfully", "success");
+      setShowMergeModal(false);
+    }, 4500);
   };
 
   const handleCreateBranch = () => {
-    showToast("Configuration branching functionality coming soon", "info");
+    setShowBranchModal(true);
+  };
+
+  const confirmCreateBranch = () => {
+    if (!branchOptions.branchName.trim()) {
+      showToast("Please enter a branch name", "error");
+      return;
+    }
+
+    showToast(`Creating branch "${branchOptions.branchName}"...`, "info");
+
+    setTimeout(() => {
+      showToast("Taking snapshot of current configurations...", "info");
+    }, 1000);
+
     setTimeout(() => {
       showToast(
-        "This will allow creating configuration branches for testing",
-        "info"
+        `Branch "${branchOptions.branchName}" created successfully`,
+        "success"
       );
-    }, 1500);
+      showToast("You can now test configuration changes in isolation", "info");
+      setShowBranchModal(false);
+      setBranchOptions({
+        branchName: "",
+        description: "",
+        baseBranch: "main",
+      });
+    }, 2500);
   };
 
   const handleSaveConfig = () => {
@@ -414,6 +501,7 @@ const DriftManagement = () => {
         return <Circle className="w-4 h-4" />;
     }
   };
+
   const GitFlowVisualization = ({ event }) => {
     return (
       <div className="p-4 space-y-4">
@@ -1098,6 +1186,319 @@ const DriftManagement = () => {
               style={{ backgroundColor: "#123458", color: "#F1EFEC" }}
             >
               Restore All
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Export Format Modal */}
+      <Modal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Export Drift Flow"
+      >
+        <div className="space-y-4">
+          <p style={{ color: "#123458" }}>
+            Choose the format for exporting drift flow data:
+          </p>
+
+          <div className="space-y-3">
+            <label
+              className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${
+                exportFormat === "json" ? "border-2" : ""
+              }`}
+              style={{
+                borderColor: exportFormat === "json" ? "#123458" : "#D4C9BE",
+                backgroundColor:
+                  exportFormat === "json" ? "#F1EFEC" : "#FFFFFF",
+              }}
+            >
+              <input
+                type="radio"
+                name="exportFormat"
+                value="json"
+                checked={exportFormat === "json"}
+                onChange={(e) => setExportFormat(e.target.value)}
+                className="mr-3"
+              />
+              <div>
+                <div className="font-medium" style={{ color: "#123458" }}>
+                  JSON Format
+                </div>
+                <div
+                  className="text-sm opacity-60"
+                  style={{ color: "#123458" }}
+                >
+                  Complete data with metadata and nested structures
+                </div>
+              </div>
+            </label>
+
+            <label
+              className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${
+                exportFormat === "csv" ? "border-2" : ""
+              }`}
+              style={{
+                borderColor: exportFormat === "csv" ? "#123458" : "#D4C9BE",
+                backgroundColor: exportFormat === "csv" ? "#F1EFEC" : "#FFFFFF",
+              }}
+            >
+              <input
+                type="radio"
+                name="exportFormat"
+                value="csv"
+                checked={exportFormat === "csv"}
+                onChange={(e) => setExportFormat(e.target.value)}
+                className="mr-3"
+              />
+              <div>
+                <div className="font-medium" style={{ color: "#123458" }}>
+                  CSV Format
+                </div>
+                <div
+                  className="text-sm opacity-60"
+                  style={{ color: "#123458" }}
+                >
+                  Spreadsheet compatible format for analysis
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              onClick={() => setShowExportModal(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#D4C9BE", color: "#123458" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmExport}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#123458", color: "#F1EFEC" }}
+            >
+              Export
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Merge Changes Modal */}
+      <Modal
+        isOpen={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        title="Merge Configuration Changes"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: "#123458" }}
+            >
+              Target Branch
+            </label>
+            <select
+              className="w-full p-2 border rounded-lg"
+              style={{ borderColor: "#D4C9BE" }}
+              value={mergeOptions.targetBranch}
+              onChange={(e) =>
+                setMergeOptions({
+                  ...mergeOptions,
+                  targetBranch: e.target.value,
+                })
+              }
+            >
+              <option value="main">main</option>
+              <option value="production">production</option>
+              <option value="staging">staging</option>
+              <option value="development">development</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: "#123458" }}
+            >
+              Merge Options
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="mr-2"
+                  checked={mergeOptions.createBackup}
+                  onChange={(e) =>
+                    setMergeOptions({
+                      ...mergeOptions,
+                      createBackup: e.target.checked,
+                    })
+                  }
+                />
+                <span className="text-sm" style={{ color: "#123458" }}>
+                  Create backup before merge
+                </span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="mr-2"
+                  checked={mergeOptions.autoResolveConflicts}
+                  onChange={(e) =>
+                    setMergeOptions({
+                      ...mergeOptions,
+                      autoResolveConflicts: e.target.checked,
+                    })
+                  }
+                />
+                <span className="text-sm" style={{ color: "#123458" }}>
+                  Auto-resolve conflicts when possible
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div
+            className="p-3 rounded-lg"
+            style={{ backgroundColor: "#F1EFEC" }}
+          >
+            <p className="text-sm" style={{ color: "#123458" }}>
+              <strong>Note:</strong> This will merge approved configuration
+              changes to the {mergeOptions.targetBranch} branch. Review all
+              changes carefully before proceeding.
+            </p>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              onClick={() => setShowMergeModal(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#D4C9BE", color: "#123458" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmMerge}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#123458", color: "#F1EFEC" }}
+            >
+              Merge Changes
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Create Branch Modal */}
+      <Modal
+        isOpen={showBranchModal}
+        onClose={() => setShowBranchModal(false)}
+        title="Create Configuration Branch"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: "#123458" }}
+            >
+              Branch Name *
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded-lg"
+              style={{ borderColor: "#D4C9BE" }}
+              placeholder="e.g., feature/new-security-config"
+              value={branchOptions.branchName}
+              onChange={(e) =>
+                setBranchOptions({
+                  ...branchOptions,
+                  branchName: e.target.value,
+                })
+              }
+            />
+          </div>
+
+          <div>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: "#123458" }}
+            >
+              Description
+            </label>
+            <textarea
+              className="w-full p-2 border rounded-lg"
+              style={{ borderColor: "#D4C9BE" }}
+              rows={3}
+              placeholder="Brief description of this configuration branch..."
+              value={branchOptions.description}
+              onChange={(e) =>
+                setBranchOptions({
+                  ...branchOptions,
+                  description: e.target.value,
+                })
+              }
+            />
+          </div>
+
+          <div>
+            <label
+              className="block text-sm font-medium mb-2"
+              style={{ color: "#123458" }}
+            >
+              Base Branch
+            </label>
+            <select
+              className="w-full p-2 border rounded-lg"
+              style={{ borderColor: "#D4C9BE" }}
+              value={branchOptions.baseBranch}
+              onChange={(e) =>
+                setBranchOptions({
+                  ...branchOptions,
+                  baseBranch: e.target.value,
+                })
+              }
+            >
+              <option value="main">main</option>
+              <option value="production">production</option>
+              <option value="staging">staging</option>
+              <option value="development">development</option>
+            </select>
+          </div>
+
+          <div
+            className="p-3 rounded-lg"
+            style={{ backgroundColor: "#F1EFEC" }}
+          >
+            <p className="text-sm" style={{ color: "#123458" }}>
+              <strong>Info:</strong> Creating a branch allows you to test
+              configuration changes in isolation before merging them to the main
+              branch. All current configurations will be snapshotted.
+            </p>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              onClick={() => {
+                setShowBranchModal(false);
+                setBranchOptions({
+                  branchName: "",
+                  description: "",
+                  baseBranch: "main",
+                });
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#D4C9BE", color: "#123458" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmCreateBranch}
+              className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity"
+              style={{ backgroundColor: "#123458", color: "#F1EFEC" }}
+            >
+              Create Branch
             </button>
           </div>
         </div>

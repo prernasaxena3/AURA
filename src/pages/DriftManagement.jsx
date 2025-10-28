@@ -187,11 +187,11 @@ const DriftManagement = () => {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    showToast("Refreshing drift events...", "info");
+    showToast("Refreshing drift events...", "info", 1500);
 
     setTimeout(() => {
       setIsRefreshing(false);
-      showToast("Drift events refreshed successfully", "success");
+      showToast("Drift events refreshed successfully", "success", 2000);
     }, 1500);
   };
 
@@ -346,21 +346,27 @@ const DriftManagement = () => {
   };
 
   const handleBackupNow = () => {
-    showToast("Initializing backup process...", "info");
+    showToast("Initializing backup process...", "info", 2000);
 
     setTimeout(() => {
       showToast(
         "Creating snapshots for all monitored configurations...",
-        "info"
+        "info",
+        2000
       );
-    }, 1000);
+    }, 2000);
+
+    setTimeout(() => {
+      showToast("Backing up 247 configuration files...", "info", 2000);
+    }, 4000);
 
     setTimeout(() => {
       showToast(
         "Backup completed successfully for 247 configurations",
-        "success"
+        "success",
+        3000
       );
-    }, 3000);
+    }, 6000);
   };
 
   const handleMergeChanges = () => {
